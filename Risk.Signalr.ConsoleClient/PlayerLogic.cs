@@ -52,21 +52,27 @@ namespace Risk.Signalr.ConsoleClient
             //TODO: Finish the logic in this block
             if (board.Any(t => t.OwnerName == MyPlayerName))
             {
-                var territories = board.Where(t => t.OwnerName == MyPlayerName);
-                for (int i = 0; i < territories.Count(); i++)
+                var territories = board.Where(t => t.OwnerName == MyPlayerName);  
+          
+                foreach(var t in territories)
                 {
-                    var currTerritory = territories.ElementAtOrDefault(i);
-                    var nextTerritory = territories.ElementAtOrDefault(i + 1);
-
-                    if (nextTerritory != null)
+                    Int64 maxArmies = territories.Max(a => a.Armies);
+                    if(t.Armies < maxArmies)
                     {
-
+                        return t.Location;
+                    }
+                    else if(territories.All(ter=>ter.Armies== maxArmies))
+                    {
+                        return t.Location;
                     }
                 }
             }
 
-            //Last resource
+            //Last resort
             return board.FirstOrDefault(t => t.OwnerName == null).Location;
+            
+            
+            
         }
 
         private IEnumerable<Location> GetSquareLocations(int initialRow, int initialCol)
@@ -111,6 +117,43 @@ namespace Risk.Signalr.ConsoleClient
             }
         }
 
+        private (Location from, Location to) determineLocationToAttack(IEnumerable<BoardTerritory> board)
+        {
+            var lastLocation = board.Last().Location;
+            var targetLocation = DetermineInitalLocation(lastLocation.Row, lastLocation.Column);
+            var innerSquareLocations = getInnerSquareLocations(targetLocation.Row, targetLocation.Column);
+
+            //foreach(var loc in innerSquareLocations)
+            //{
+            //    var innerTerritory = board.FirstOrDefault(t => t.Location.Row == loc.Row && t.Location.Column == loc.Column);
+            //    if(innerTerritory.OwnerName!= null && innerTerritory.OwnerName != MyPlayerName)
+            //    {
+            //        return innerTerritory.Location;
+            //    }
+
+            //}
+
+            foreach (var myTerritory in board.Where(t => t.OwnerName == MyPlayerName).OrderByDescending(t => t.Armies))
+            {
+                var myNeighbors = GetNeighbors(myTerritory, board);
+                var destination = myNeighbors.Where(t => t.OwnerName != MyPlayerName).OrderBy(t => t.Armies).FirstOrDefault();
+                if (destination != null)
+                {
+                    return (myTerritory.Location, destination.Location);
+                }
+            }
+            throw new Exception("Unable to find place to attack");
+        }
+        private IEnumerable<Location> getInnerSquareLocations(int row, int column)
+        {
+            List<Location> innerSquare = new List<Location>();
+            for(int r=row+1; r<=row+3; r++){
+                for (int c=column+1; c<=column+3; c++) {
+                    innerSquare.Add(new Location(r, c));
+                }
+            }
+            return innerSquare;
+        }
         public (Location from, Location to) WhereDoYouWantToAttack(IEnumerable<BoardTerritory> board)
         {
             randomSleep();
