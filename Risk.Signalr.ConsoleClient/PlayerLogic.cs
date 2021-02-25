@@ -14,7 +14,7 @@ namespace Risk.Signalr.ConsoleClient
         Random rng = new Random();
         int sleepFrequency = 0;
         private readonly bool shouldSleep;
-
+        int attacksMade = 0;
         int delayAttack = 0;
         int lastBoardSum = 0;
 
@@ -165,17 +165,21 @@ namespace Risk.Signalr.ConsoleClient
                 }
             }
 
+            //If we made it here is becuase our square is completed
+
             if (delayAttack < 5) 
-            { 
-                var current = board.Sum(t => t.Armies);
-                if (lastBoardSum != current)
+            {
+                //change this
+                var myMax = board.Where(t => t.OwnerName == MyPlayerName).Max(t => t.Armies);
+                var maxTerritories = board.Where(t => t.OwnerName != MyPlayerName && t.Armies >= myMax).Count();
+                if (maxTerritories > 0)
                 {
                     delayAttack = 0;
-                    lastBoardSum = current;
                 }
                 else
                 {
                     delayAttack++;
+                    throw new Exception("I don't want to attack yet");
                 }
             }
 
