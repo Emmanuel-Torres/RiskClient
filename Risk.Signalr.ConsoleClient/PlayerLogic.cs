@@ -53,9 +53,9 @@ namespace Risk.Signalr.ConsoleClient
             }
 
             //TODO: Finish the logic in this block
-            if (board.Any(t => t.OwnerName == MyPlayerName))
+            if (board.Any(t => t.OwnerName.Contains(MyPlayerName)))
             {
-                var territories = board.Where(t => t.OwnerName == MyPlayerName);  
+                var territories = board.Where(t => t.OwnerName.Contains(MyPlayerName));  
           
                 foreach(var t in territories)
                 {
@@ -132,7 +132,7 @@ namespace Risk.Signalr.ConsoleClient
             {
                 foreach (var destination in hostileTerr.OrderByDescending(t => t.Armies))
                 {
-                    var myTerritories = GetNeighbors(destination, board).Where(t => t.OwnerName == MyPlayerName).Where(t => t.Armies > 1).OrderByDescending(t => t.Armies);
+                    var myTerritories = GetNeighbors(destination, board).Where(t => t.OwnerName.Contains(MyPlayerName)).Where(t => t.Armies > 1).OrderByDescending(t => t.Armies);
                     var source = myTerritories.FirstOrDefault();
                     if (myTerritories.Sum(t => t.Armies) > destination.Armies)
                     {
@@ -145,7 +145,7 @@ namespace Risk.Signalr.ConsoleClient
             {
                 foreach (var destination in innerSquareHost.OrderByDescending(t => t.Armies))
                 {
-                    var myTerritories = GetNeighbors(destination, board).Where(t => t.OwnerName == MyPlayerName).Where(t => t.Armies > 1).OrderByDescending(t => t.Armies);
+                    var myTerritories = GetNeighbors(destination, board).Where(t => t.OwnerName.Contains(MyPlayerName)).Where(t => t.Armies > 1).OrderByDescending(t => t.Armies);
                     var source = myTerritories.FirstOrDefault();
                     if (myTerritories.Sum(t => t.Armies) > destination.Armies)
                     {
@@ -154,11 +154,11 @@ namespace Risk.Signalr.ConsoleClient
                 }
             }
 
-            foreach (var myTerritory in board.Where(t => t.OwnerName == MyPlayerName).Where(t => t.Armies > 1).OrderByDescending(t => t.Armies))
+            foreach (var myTerritory in board.Where(t => t.OwnerName.Contains(MyPlayerName)).Where(t => t.Armies > 1).OrderByDescending(t => t.Armies))
             {
                 var myNeighbors = GetNeighbors(myTerritory, board);
-                var destination = myNeighbors.Where(t => t.OwnerName != MyPlayerName).OrderBy(t => t.Armies).FirstOrDefault();
-                var dummyTerr = board.Where(t => t.OwnerName == MyPlayerName).Where(t => t.Armies < 2);
+                var destination = myNeighbors.Where(t => !t.OwnerName.Contains(MyPlayerName)).OrderBy(t => t.Armies).FirstOrDefault();
+                var dummyTerr = board.Where(t => t.OwnerName.Contains(MyPlayerName)).Where(t => t.Armies < 2);
                 if (destination != null && dummyTerr.Count() < 10 && destination.Armies < myNeighbors.Sum(t => t.Armies))
                 {
                     return (myTerritory.Location, destination.Location);
@@ -181,10 +181,10 @@ namespace Risk.Signalr.ConsoleClient
 
             if (delayAttack == 5)
             {
-                foreach (var myTerritory in board.Where(t => t.OwnerName == MyPlayerName).Where(t => t.Armies > 1).OrderByDescending(t => t.Armies))
+                foreach (var myTerritory in board.Where(t => t.OwnerName.Contains(MyPlayerName)).Where(t => t.Armies > 1).OrderByDescending(t => t.Armies))
                 {
                     var myNeighbors = GetNeighbors(myTerritory, board);
-                    var destination = myNeighbors.Where(t => t.OwnerName != MyPlayerName).OrderBy(t => t.Armies).FirstOrDefault();
+                    var destination = myNeighbors.Where(t => !t.OwnerName.Contains(MyPlayerName)).OrderBy(t => t.Armies).FirstOrDefault();
                     if (destination != null)
                     {
                         return (myTerritory.Location, destination.Location);
@@ -202,7 +202,7 @@ namespace Risk.Signalr.ConsoleClient
             foreach(var l in innerSquare)
             {
                 var terr = board.FirstOrDefault(t => t.Location.Row == l.Row && t.Location.Column == l.Column);
-                if (terr.OwnerName != MyPlayerName)
+                if (!terr.OwnerName.Contains(MyPlayerName))
                 {
                     hostileTerr.Add(terr);
                 }
@@ -218,7 +218,7 @@ namespace Risk.Signalr.ConsoleClient
             foreach (var l in squareLocations)
             {
                 var terr = board.FirstOrDefault(t => t.Location.Row == l.Row && t.Location.Column == l.Column);
-                if (terr.OwnerName != MyPlayerName)
+                if (!terr.OwnerName.Contains(MyPlayerName))
                 {
                     hostileTerr.Add(terr);
                 }
