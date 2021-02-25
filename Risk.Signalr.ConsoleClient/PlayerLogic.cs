@@ -1,0 +1,146 @@
+﻿using Risk.Shared;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace Risk.Signalr.ConsoleClient
+{
+    public class PlayerLogic : IPlayerLogic
+    {
+        public string MyPlayerName { get; set; }
+        int turnNum = 0;
+        Random rng = new Random();
+        int sleepFrequency = 0;
+        private readonly bool shouldSleep;
+
+        public PlayerLogic(string playerName, bool shouldSleep)
+        {
+            MyPlayerName = playerName;
+            this.shouldSleep = shouldSleep;
+            sleepFrequency = rng.Next(5, 20);
+        }
+
+
+        public Location WhereDoYouWantToDeploy(IEnumerable<BoardTerritory> board)
+        {
+            var location = DetermineLocationToDeploy(board);
+            return location;
+        }
+
+        private Location DetermineLocationToDeploy(IEnumerable<BoardTerritory> board)
+        {
+            var lastLocation = board.Last().Location;
+            var targetLocation = DetermineInitalLocation(lastLocation.Row, lastLocation.Column);
+            var squareLocations = GetSquareLocations(targetLocation.Row, targetLocation.Column);
+            var location = GetDeployLocation(squareLocations, board);
+            return location;
+        }
+
+        private Location GetDeployLocation(IEnumerable<Location> squareLocations, IEnumerable<BoardTerritory> board)
+        {
+            foreach (var l in squareLocations)
+            {
+                var t = board.FirstOrDefault(t => t.Location.Row == l.Row && t.Location.Column == l.Column);
+                if (t != null && t.OwnerName == null)
+                {
+                    return t.Location;
+                }
+            }
+
+            //TODO: Finish the logic in this block
+            if (board.Any(t => t.OwnerName == MyPlayerName))
+            {
+                var territories = board.Where(t => t.OwnerName == MyPlayerName);
+                for (int i = 0; i < territories.Count(); i++)
+                {
+                    var currTerritory = territories.ElementAtOrDefault(i);
+                    var nextTerritory = territories.ElementAtOrDefault(i + 1);
+
+                    if (nextTerritory != null)
+                    {
+
+                    }
+                }
+            }
+
+            //Last resource
+            return board.FirstOrDefault(t => t.OwnerName == null).Location;
+        }
+
+        private IEnumerable<Location> GetSquareLocations(int initialRow, int initialCol)
+        {
+            var SquareLocations = new List<Location>();
+            for (int r = initialRow; r <= initialRow + 4; r++)
+            {
+                for (int c = initialCol; c <= initialCol + 4; c++)
+                {
+                    if (r < initialRow + 4 && r > initialRow)
+                    {
+                        if (c == initialCol + 4 || c == initialCol)
+                        {
+                            SquareLocations.Add(new Location(r, c));
+                        }
+                    }
+                    else
+                    {
+                        SquareLocations.Add(new Location(r, c));
+                    }
+                }
+            }
+
+            return SquareLocations;
+        }
+
+        private Location DetermineInitalLocation(int maxRow, int maxCol)
+        {
+            return new Location((maxRow / 2) - 2, (maxCol / 2) - 2);
+        }
+
+        private void randomSleep()
+        {
+            if (!shouldSleep)
+                return;
+
+            if (turnNum++ % sleepFrequency == 0)
+            {
+                int secondsToSleep = rng.Next(0, 3);
+                Console.WriteLine($"Sleeping for {secondsToSleep}");
+                Thread.Sleep(TimeSpan.FromSeconds(secondsToSleep));
+            }
+        }
+
+        public (Location from, Location to) WhereDoYouWantToAttack(IEnumerable<BoardTerritory> board)
+        {
+            randomSleep();
+
+            foreach (var myTerritory in board.Where(t => t.OwnerName == MyPlayerName).OrderByDescending(t => t.Armies))
+            {
+                var myNeighbors = GetNeighbors(myTerritory, board);
+                var destination = myNeighbors.Where(t => t.OwnerName != MyPlayerName).OrderBy(t => t.Armies).FirstOrDefault();
+                if (destination != null)
+                {
+                    return (myTerritory.Location, destination.Location);
+                }
+            }
+            throw new Exception("Unable to find place to attack");
+        }
+
+        private IEnumerable<BoardTerritory> GetNeighbors(BoardTerritory territory, IEnumerable<BoardTerritory> board)
+        {
+            var l = territory.Location;
+            var neighborLocations = new[] {
+                new Location(l.Row+1, l.Column-1),
+                new Location(l.Row+1, l.Column),
+                new Location(l.Row+1, l.Column+1),
+                new Location(l.Row, l.Column-1),
+                new Location(l.Row, l.Column+1),
+                new Location(l.Row-1, l.Column-1),
+                new Location(l.Row-1, l.Column),
+                new Location(l.Row-1, l.Column+1),
+            };
+            return board.Where(t => neighborLocations.Contains(t.Location));
+        }
+    }
+}
