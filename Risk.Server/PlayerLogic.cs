@@ -19,8 +19,9 @@ namespace Risk.Server
 
         public Location WhereDoYouWantToDeploy(IEnumerable<BoardTerritory> board)
         {
-            var myTerritory = board.FirstOrDefault(t => t.OwnerName == MyPlayerName) ?? board.Skip(board.Count() / 2).First(t => t.OwnerName == null);
-            return myTerritory.Location;
+            //var myTerritory = board.FirstOrDefault(t => t.OwnerName == MyPlayerName) ?? board.Skip(board.Count() / 2).First(t => t.OwnerName == null);
+            //return myTerritory.Location;
+            return new Location(6, 3);
         }
 
         public (Location to, Location from) WhereDoYouWantToAttack(IEnumerable<BoardTerritory> board)

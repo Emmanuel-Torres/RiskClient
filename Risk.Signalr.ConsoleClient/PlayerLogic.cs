@@ -15,6 +15,9 @@ namespace Risk.Signalr.ConsoleClient
         int sleepFrequency = 0;
         private readonly bool shouldSleep;
 
+        int delayAttack = 0;
+        int lastBoardSum = 0;
+
         public PlayerLogic(string playerName, bool shouldSleep)
         {
             MyPlayerName = playerName;
@@ -70,9 +73,6 @@ namespace Risk.Signalr.ConsoleClient
 
             //Last resort
             return board.FirstOrDefault(t => t.OwnerName == null).Location;
-            
-            
-            
         }
 
         private IEnumerable<Location> GetSquareLocations(int initialRow, int initialCol)
@@ -121,29 +121,112 @@ namespace Risk.Signalr.ConsoleClient
         {
             var lastLocation = board.Last().Location;
             var targetLocation = DetermineInitalLocation(lastLocation.Row, lastLocation.Column);
+            var squareLocations = GetSquareLocations(lastLocation.Row, lastLocation.Column);
             var innerSquareLocations = getInnerSquareLocations(targetLocation.Row, targetLocation.Column);
+            var hostileTerr = NotOwnedSquareTerr(targetLocation, board);
+            var innerSquareHost = NotOwnedInnerSquareTerr(targetLocation, board);
 
-            //foreach(var loc in innerSquareLocations)
-            //{
-            //    var innerTerritory = board.FirstOrDefault(t => t.Location.Row == loc.Row && t.Location.Column == loc.Column);
-            //    if(innerTerritory.OwnerName!= null && innerTerritory.OwnerName != MyPlayerName)
-            //    {
-            //        return innerTerritory.Location;
-            //    }
 
-            //}
 
-            foreach (var myTerritory in board.Where(t => t.OwnerName == MyPlayerName).OrderByDescending(t => t.Armies))
+            if (hostileTerr.Count() > 0)
+            {
+                foreach (var destination in hostileTerr.OrderByDescending(t => t.Armies))
+                {
+                    var myTerritories = GetNeighbors(destination, board).Where(t => t.OwnerName == MyPlayerName).Where(t => t.Armies > 1).OrderByDescending(t => t.Armies);
+                    var source = myTerritories.FirstOrDefault();
+                    if (myTerritories.Sum(t => t.Armies) > destination.Armies)
+                    {
+                        return (source.Location, destination.Location);
+                    }
+                }
+            }
+
+            if (innerSquareHost.Count() > 0)
+            {
+                foreach (var destination in innerSquareHost.OrderByDescending(t => t.Armies))
+                {
+                    var myTerritories = GetNeighbors(destination, board).Where(t => t.OwnerName == MyPlayerName).Where(t => t.Armies > 1).OrderByDescending(t => t.Armies);
+                    var source = myTerritories.FirstOrDefault();
+                    if (myTerritories.Sum(t => t.Armies) > destination.Armies)
+                    {
+                        return (source.Location, destination.Location);
+                    }
+                }
+            }
+
+            foreach (var myTerritory in board.Where(t => t.OwnerName == MyPlayerName).Where(t => t.Armies > 1).OrderByDescending(t => t.Armies))
             {
                 var myNeighbors = GetNeighbors(myTerritory, board);
                 var destination = myNeighbors.Where(t => t.OwnerName != MyPlayerName).OrderBy(t => t.Armies).FirstOrDefault();
-                if (destination != null)
+                var dummyTerr = board.Where(t => t.OwnerName == MyPlayerName).Where(t => t.Armies < 2);
+                if (destination != null && dummyTerr.Count() < 10 && destination.Armies < myNeighbors.Sum(t => t.Armies))
                 {
                     return (myTerritory.Location, destination.Location);
                 }
             }
+
+            if (delayAttack < 5) 
+            { 
+                var current = board.Sum(t => t.Armies);
+                if (lastBoardSum != current)
+                {
+                    delayAttack = 0;
+                    lastBoardSum = current;
+                }
+                else
+                {
+                    delayAttack++;
+                }
+            }
+
+            if (delayAttack == 5)
+            {
+                foreach (var myTerritory in board.Where(t => t.OwnerName == MyPlayerName).Where(t => t.Armies > 1).OrderByDescending(t => t.Armies))
+                {
+                    var myNeighbors = GetNeighbors(myTerritory, board);
+                    var destination = myNeighbors.Where(t => t.OwnerName != MyPlayerName).OrderBy(t => t.Armies).FirstOrDefault();
+                    if (destination != null)
+                    {
+                        return (myTerritory.Location, destination.Location);
+                    }
+                }
+            }
+
             throw new Exception("Unable to find place to attack");
         }
+
+        private IEnumerable<BoardTerritory> NotOwnedInnerSquareTerr(Location targetLocation, IEnumerable<BoardTerritory> board)
+        {
+            var innerSquare = getInnerSquareLocations(targetLocation.Row, targetLocation.Column);
+            var hostileTerr = new List<BoardTerritory>();
+            foreach(var l in innerSquare)
+            {
+                var terr = board.FirstOrDefault(t => t.Location.Row == l.Row && t.Location.Column == l.Column);
+                if (terr.OwnerName != MyPlayerName)
+                {
+                    hostileTerr.Add(terr);
+                }
+            }
+
+            return hostileTerr;
+        }
+
+        private IEnumerable<BoardTerritory> NotOwnedSquareTerr(Location targetLocation, IEnumerable<BoardTerritory> board)
+        {
+            var squareLocations = GetSquareLocations(targetLocation.Row, targetLocation.Column);
+            var hostileTerr = new List<BoardTerritory>();
+            foreach (var l in squareLocations)
+            {
+                var terr = board.FirstOrDefault(t => t.Location.Row == l.Row && t.Location.Column == l.Column);
+                if (terr.OwnerName != MyPlayerName)
+                {
+                    hostileTerr.Add(terr);
+                }
+            }
+
+            return hostileTerr;
+        }
+
         private IEnumerable<Location> getInnerSquareLocations(int row, int column)
         {
             List<Location> innerSquare = new List<Location>();
@@ -156,18 +239,7 @@ namespace Risk.Signalr.ConsoleClient
         }
         public (Location from, Location to) WhereDoYouWantToAttack(IEnumerable<BoardTerritory> board)
         {
-            randomSleep();
-
-            foreach (var myTerritory in board.Where(t => t.OwnerName == MyPlayerName).OrderByDescending(t => t.Armies))
-            {
-                var myNeighbors = GetNeighbors(myTerritory, board);
-                var destination = myNeighbors.Where(t => t.OwnerName != MyPlayerName).OrderBy(t => t.Armies).FirstOrDefault();
-                if (destination != null)
-                {
-                    return (myTerritory.Location, destination.Location);
-                }
-            }
-            throw new Exception("Unable to find place to attack");
+            return determineLocationToAttack(board);
         }
 
         private IEnumerable<BoardTerritory> GetNeighbors(BoardTerritory territory, IEnumerable<BoardTerritory> board)
